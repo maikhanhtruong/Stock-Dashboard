@@ -1,4 +1,4 @@
-# Stock-Dashboard for Tesla and GameStop 
+# Stock Performance Dashboard for Tesla and GameStop 
 Streamlit and Plotly Project to create a basic Stock Performance Dashboard. Based on Python Project for Data Science Course- a course offered by IBM
 ![image](https://user-images.githubusercontent.com/70972199/161048965-6c0f94a3-775d-41ad-b144-f014df3bec6d.png)
 ![image](https://user-images.githubusercontent.com/70972199/161049425-77088c62-407d-4631-9e50-d081505c0e18.png)
