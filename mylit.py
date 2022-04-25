@@ -1,4 +1,4 @@
-# This project uses plotly and streamlit to provide basic dashboard and downloadable Performances Visualizations
+# This project uses matplotlib and streamlit to provide basic dashboard and downloadable Performances Visualizations
 # Basic packages
 from sys import _enablelegacywindowsfsencoding
 import streamlit as st
@@ -11,11 +11,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from cycler import cycler
 plt.style.use('seaborn-bright')
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import seaborn as sb 
-import json
-
 import warnings
 warnings.filterwarnings("ignore")
 
