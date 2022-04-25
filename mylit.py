@@ -1,56 +1,56 @@
 # This project uses plotly and streamlit to provide basic dashboard and downloadable Performances Visualizations
-
+# Basic packages
 from sys import _enablelegacywindowsfsencoding
 import streamlit as st
 import pandas as pd
-import matplotlib as plt
 import datetime
 import yfinance as yf
+
+#Packages for plotting
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from cycler import cycler
+plt.style.use('seaborn-bright')
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import requests
-from bs4 import BeautifulSoup
+import seaborn as sb 
+import json
+
+import warnings
+warnings.filterwarnings("ignore")
+
+
 
 st.title('Basic Stock Performance Dashboard')
 
 # Organize side bar including chosing a stock the information Type ( Financial Summary, Visualization)
-symbols={'TSLA','GME' }
 
-ticker= st.sidebar.radio('Chose a Stock from below'
-                         , symbols)
+sp500 = pd.read_csv("SP500.csv")
+symbols = sp500['Symbol'].sort_values().tolist()
+
+#Required Ticker Inputs
+ticker = st.text_input('Enter a SP500 Stock Ticker', 'TSLA' )
+stock= yf.Ticker(ticker)
+
+# Show info about the Ticker:
+if(ticker in symbols ):
+    'Stocks Issuer:' 
+    st.success( stock.info['longName'] )
+else:
+    st.error('This Ticker ist not in SP500')
 
 info=st.sidebar.radio('What do you want to know?',
-                      ('Basic Information','Financial Summary','Stock performance')
+                      ('Stock Information','Visualization')
                       )
 
-#Define makeGraph Function (from IBM Python Project for Data Analyse)
-
-def make_graph(stock_data, revenue_data, stock):
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("Historical Share Price", "Historical Revenue"), vertical_spacing = .3)
-    stock_data_specific = stock_data[stock_data.Date <= '2021--06-14']
-    revenue_data_specific = revenue_data[revenue_data.Date <= '2021-04-30']
-    fig.add_trace(go.Scatter(x=pd.to_datetime(stock_data_specific.Date, infer_datetime_format=True), y=stock_data_specific.Close.astype("float"), name="Share Price"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=pd.to_datetime(revenue_data_specific.Date, infer_datetime_format=True), y=revenue_data_specific.Revenue.astype("float"), name="Revenue"), row=2, col=1)
-    fig.update_xaxes(title_text="Date", row=1, col=1)
-    fig.update_xaxes(title_text="Date", row=2, col=1)
-    fig.update_yaxes(title_text="Price ($US)", row=1, col=1)
-    fig.update_yaxes(title_text="Revenue ($US Millions)", row=2, col=1)
-    fig.update_layout(showlegend=False,
-    height=900,
-    title=stock,
-    xaxis_rangeslider_visible=True)
-    fig.show()
-
 # Get Financial Summary
-
-stock=yf.Ticker(ticker)
-
-
-if(info=='Basic Information'):
-    st.title('Company Profile')
-    st.subheader(stock.info['longName'])
-    st.info(stock.info['longBusinessSummary'])
-    basicinfo={
+if(info=='Stock Information'):
+    info_or_finsum=st.selectbox('Choose Information Type', ('Basic Information','Financial Summary'))
+    if(info_or_finsum=='Basic Information'):
+        st.title('Company Profile')
+        st.subheader(stock.info['longName'])
+        st.info(stock.info['longBusinessSummary'])
+        basicinfo={
         'Sector': stock.info['sector'],
         'Industry': stock.info['industry'],
         'Country': stock.info['country'],
@@ -58,12 +58,12 @@ if(info=='Basic Information'):
         }
 
     
-    basicinfoDF = pd.DataFrame.from_dict(basicinfo, orient='index')
-    basicinfoDF = basicinfoDF.rename(columns={0: ''})
-    st.subheader('Fundamental Info')
-    st.table(basicinfoDF)
+        basicinfoDF = pd.DataFrame.from_dict(basicinfo, orient='index')
+        basicinfoDF = basicinfoDF.rename(columns={0: ''})
+        st.subheader('Fundamental Information')
+        st.table(basicinfoDF)
     
-    fundInfo = {
+        fundInfo = {
             'Enterprise Value (USD)': stock.info['enterpriseValue'],
             'Enterprise To Revenue Ratio': stock.info['enterpriseToRevenue'],
             'Enterprise To Ebitda Ratio': stock.info['enterpriseToEbitda'],
@@ -78,18 +78,18 @@ if(info=='Basic Information'):
             'Payout Ratio': stock.info['payoutRatio']
         }
     
-    fundDF = pd.DataFrame.from_dict(fundInfo, orient='index')
-    fundDF = fundDF.rename(columns={0: 'Value'})
-    st.subheader('More Information') 
-    st.table(fundDF)
- # show financials
-elif(info=='Financial Summary'):
+        fundDF = pd.DataFrame.from_dict(fundInfo, orient='index')
+        fundDF = fundDF.rename(columns={0: 'Value'})
+        st.subheader('More Information') 
+        st.table(fundDF)
+        
+    else:
+     st.subheader('Financial Reports')
+     what = st.selectbox(
+     'Chose report type',
+     ('Quarterly reports','Annual reports'))
     
-    what = st.selectbox(
-    'Chose report type',
-     ('Quarterly reports','Annual reports')
-     )
-    if (what=='Quarterly reports'):
+     if (what=='Quarterly reports'):
         st.subheader('Quarterly Financial Report')
         stock.quarterly_financials
         st.subheader('Quarterly Balance Sheet')
@@ -98,7 +98,7 @@ elif(info=='Financial Summary'):
         stock.quarterly_cashflow
         st.subheader('Quarterly Earnings')
         stock.quarterly_earnings
-    else:
+     else:
         st.subheader('Financial Report')
         stock.financials
         st.subheader('Balance Sheet')
@@ -108,48 +108,117 @@ elif(info=='Financial Summary'):
         st.subheader('Earnings')
         stock.earnings
 else:
+
+    st.subheader("Visualization with different libraries")
+
+    #Ploting methods:
+    type_analyze= st.selectbox('Choose analyzing type', ('Individual', 'Compare'))
     
-    if(ticker=='TSLA'):
-        #yfinance 
-        tesla=yf.Ticker('TSLA')
-        tesla_data=tesla.history(period='max')
-        tesla_data.reset_index(inplace=True)
-        #webscraping
-        url = "https://www.macrotrends.net/stocks/charts/TSLA/tesla/revenue"
-        html_data  = requests.get(url).text
-        soup = BeautifulSoup(html_data, 'html5lib')
-        tesla_revenue = pd.DataFrame(columns=["Date", "Revenue"])
+    if(type_analyze == 'Individual'):
         
-        for row in soup.find("tbody").find_all('tr'):
-            col = row.find_all("td")
-            date = col[0].text
-            revenue = col[1].text
-            tesla_revenue = tesla_revenue.append({"Date":date, "Revenue":revenue}, ignore_index=True) 
-            tesla_revenue["Revenue"] = tesla_revenue['Revenue'].str.replace(',|\$',"")
-            tesla_revenue.dropna(inplace=True)
-            tesla_revenue = tesla_revenue[tesla_revenue['Revenue'] != ""]
-        make_graph(tesla_data, tesla_revenue, 'Tesla')
-    else:
-        gme=yf.Ticker('GME')
-        gme_data=gme.history(period='max')
-        gme_data.reset_index(inplace=True)
+        ind_vis_lib = st.selectbox('Choose a library to visualize',('Matplotlib', 'Seaborn', 'Plotly'))
         
-        url = " https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-PY0220EN-SkillsNetwork/labs/project/stock.html"
-        html_data= requests.get(url).text
-        soup = BeautifulSoup(html_data, 'html5lib')
-        gme_revenue = pd.DataFrame(columns=["Date", "Revenue"])
+        #Matplotlib 
         
-        for row in soup.find("tbody").find_all('tr'):
-            col = row.find_all("td")
-            date = col[0].text
-            revenue = col[1].text
-            gme_revenue = gme_revenue.append({"Date":date, "Revenue":revenue}, ignore_index=True)  
-            # Remove Comma and dollar sign  from the Revenue column
-            gme_revenue["Revenue"] = gme_revenue['Revenue'].str.replace(',|\$',"")
-            # Remove an null or empty strings in the Revenue column
-            gme_revenue.dropna(inplace=True)
-            gme_revenue = gme_revenue[gme_revenue['Revenue'] != ""]
-        make_graph(gme_data, gme_revenue, 'GameStop')
+        if (ind_vis_lib == 'Matplotlib'):
+            
+            #Visualize Stock Price
+            
+                
+            start_date= st.text_input('Enter Starting date as YYYY-MM-DD', '2021-01-01')
+            end_date= st.text_input('Enter Ending date as YYYY-MM-DD', '2022-01-01')
+            itv =st.selectbox('Choose an Intervall:',('1d','5d','1w','1m','3m','1y','5y'))
+            'Analyzing Period: ', start_date, '-', end_date
+                
+            df = stock.history(intervall= itv, start= start_date, end= end_date)
+            df
+                
+            fig = plt.figure(figsize = (6,4), dpi=50)
+            
+            plt.plot(df.Open,color='r')
+            plt.xlabel('Date')
+            plt.title('Open Price')
+            plt.legend(['Open Price ($)'])
+                        
+                
+            
+            fig1= plt.figure(figsize= (6,4), dpi=50)
+        
+            plt.plot(df.Close, color='b')
+            plt.title('Close Price')
+            plt.xlabel('Date')
+            plt.legend(['Close Price ($)'])
+                    
+            st.subheader('Volume')         
+            fig2= plt.figure(figsize= (12,5), dpi= 50)
+            plt.plot(df.Volume, color='g')
+            plt.xlabel('Date')
+            plt.legend(['Volume'])
+            st.pyplot(fig2)
+                
+            #Visualize Daily Price Changes
+                
+            datevals = pd.to_datetime(df.index[1:].values)
+            oldvals = df.Close[:-1].values
+            newvals = df.Close[1:].values
+
+            percent_change = (newvals-oldvals)*100/oldvals 
+
+            fig3=plt.figure(figsize= (6,4), dpi=50)
+            plt.plot(datevals, percent_change)
+            plt.title('Daily Change History:')
+            plt.xlabel('Date')
+            plt.ylabel('Daily Change (%)')
+    
+                
+            fig4=plt.figure(figsize=(6,4), dpi=50)
+            plt.hist(percent_change, bins=100, density=True, stacked=True)
+            plt.title('Daily Change Histogram:')
+            plt.xlabel('Daily Change (%)')
+            plt.ylabel('Probability Density Function')
+                
+            #Layout
+            st.subheader('Stock Price in Line Graph')
+            container1 = st.container()
+            col1, col2 = st.columns(2)
+            with container1:
+                with col1:
+                    fig
+                with col2:
+                    fig1
+            st.subheader('Daily Price Changes')
+            'Daily Change Statistics:'
+            st.table(pd.DataFrame(percent_change).describe())
+            container2 = st.container()
+            col3, col4 = st.columns(2)
+            with container2:
+                with col3:
+                    fig3
+                with col4:
+                    fig4
+        
+
+
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+            
+                
+                
+                
+            
+                
+                
+                
+                
         
     
-        
+    
+    
